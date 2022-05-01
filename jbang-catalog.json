@@ -1,0 +1,18 @@
+{
+    "catalogs": {},
+    "aliases": {
+        "liga": {
+            "script-ref": "scripts/liga.java"
+        },
+        "nonthematic": {
+            "script-ref": "scripts/nonthematic.java"
+        },
+        "membercount": {
+            "script-ref": "scripts/membercount.java"
+        },
+        "opponents": {
+            "script-ref": "scripts/opponents.java"
+        }
+     },
+    "templates": {}
+}

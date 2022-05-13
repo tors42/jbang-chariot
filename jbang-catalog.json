@@ -12,6 +12,9 @@
         },
         "opponents": {
             "script-ref": "scripts/opponents.java"
+        },
+        "flatten": {
+            "script-ref": "scripts/flatten.java"
         }
      },
     "templates": {}

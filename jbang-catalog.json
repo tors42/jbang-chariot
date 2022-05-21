@@ -15,6 +15,9 @@
         },
         "flatten": {
             "script-ref": "scripts/flatten.java"
+        },
+        "evalsummary": {
+            "script-ref": "scripts/evalsummary.java"
         }
      },
     "templates": {}

@@ -1,13 +1,7 @@
-//DEPS io.github.tors42:chariot:0.0.33
+//DEPS io.github.tors42:chariot:0.0.34
 //JAVA 17+
 
-import java.util.stream.Collectors;
-import static java.util.function.Predicate.not;
-
 import chariot.Client;
-import chariot.model.Game.Entry.Oops;
-import chariot.model.Game.Entry.Oops.Judgment.Name;
-import chariot.model.GameUser;
 
 class evalsummary {
 
@@ -27,69 +21,39 @@ class evalsummary {
                  Inaccuracies: ?
                  Mistakes:     ?
                  Blunders:     ?
+                 ACPL:         ?
 
                 Black (%s)
                  Inaccuracies: ?
                  Mistakes:     ?
                  Blunders:     ?
+                 ACPL:         ?
                  """.formatted(
-                     name(game.players().white()),
-                     name(game.players().black())));
+                     game.players().white().name(),
+                     game.players().black().name()));
              return;
         }
 
-        record Side(boolean white, Oops oops) {}
-
-        var allOops = game.analysis().stream()
-            .filter(Oops.class::isInstance)
-            .map(Oops.class::cast)
-            .map(oops -> new Side(game.analysis().indexOf(oops) % 2 == 0, oops))
-            .toList();
-
-        var whiteStats = allOops.stream()
-            .filter(Side::white)
-            .map(Side::oops)
-            .collect(Collectors.groupingBy(oops -> oops.judgment().name(), Collectors.counting()));
-
-        var blackStats = allOops.stream()
-            .filter(not(Side::white))
-            .map(Side::oops)
-            .collect(Collectors.groupingBy(oops -> oops.judgment().name(), Collectors.counting()));
+        var wa = game.players().white().analysis().get();
+        var ba = game.players().black().analysis().get();
 
         System.out.println("""
                 White (%s)
                  Inaccuracies: %2d
                  Mistakes:     %2d
                  Blunders:     %2d
+                 ACPL:         %3d
 
                 Black (%s)
                  Inaccuracies: %2d
                  Mistakes:     %2d
                  Blunders:     %2d
+                 ACPL:         %3d
                 """.formatted(
-                    name(game.players().white()),
-                    whiteStats.getOrDefault(Name.Inaccuracy, 0l),
-                    whiteStats.getOrDefault(Name.Mistake, 0l),
-                    whiteStats.getOrDefault(Name.Blunder, 0l),
-                    name(game.players().black()),
-                    blackStats.getOrDefault(Name.Inaccuracy, 0l),
-                    blackStats.getOrDefault(Name.Mistake, 0l),
-                    blackStats.getOrDefault(Name.Blunder, 0l)
+                    game.players().white().name(),
+                    wa.inaccuracy(), wa.mistake(), wa.blunder(), wa.acpl(),
+                    game.players().black().name(),
+                    ba.inaccuracy(), ba.mistake(), ba.blunder(), ba.acpl()
                     ));
-    }
-
-    // todo, add this to GameUser
-    static String name(GameUser user) {
-        if (user instanceof GameUser.Anonymous) return "Anonymous";
-        if (user instanceof GameUser.User u) return u.user().name();
-        if (user instanceof GameUser.Computer c) return "Stockfish level " + c.aiLevel();
-        return "<unknown user>";
-
-        // --enable-preview
-        //return switch(user) {
-        //    case GameUser.Anonymous a -> "Anonymous";
-        //    case GameUser.User u -> u.user().name();
-        //    case GameUser.Computer c -> "Stockfish level " + c.aiLevel();
-        //};
     }
 }

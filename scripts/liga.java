@@ -1,4 +1,4 @@
-//DEPS io.github.tors42:chariot:0.0.32
+//DEPS io.github.tors42:chariot:0.0.34
 //JAVA 17
 import java.io.IOException;
 import java.nio.file.Files;
@@ -42,7 +42,7 @@ class liga {
                      A negative value such as -1 will include all team battles.
 
 
-                 file=<value> (default: liga.txt)
+                 file=<value> (default: none)
 
                      The name of a file to store the report in.
                      Specify "none" in order to only show results in terminal.
@@ -50,7 +50,7 @@ class liga {
 
                 Example:
 
-                 $ liga team=the-chess-lounge file=none
+                 $ liga team=the-chess-lounge
                  Using parameters:
                   team=the-chess-lounge
                   battles=1
@@ -83,7 +83,7 @@ class liga {
 
         String teamOption    = input.getOrDefault("team",    "lichess-discord-bundesliga-team");
         String battlesOption = input.getOrDefault("battles", "1");
-        String fileOption    = input.getOrDefault("file",    "liga.txt");
+        String fileOption    = input.getOrDefault("file",    "none");
 
         System.out.println(
                 """

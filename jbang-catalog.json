@@ -18,6 +18,9 @@
         },
         "evalsummary": {
             "script-ref": "scripts/evalsummary.java"
+        },
+        "autoscore": {
+            "script-ref": "scripts/autoscore.java"
         }
      },
     "templates": {}

@@ -3,6 +3,8 @@
 //JAVAC_OPTIONS --enable-preview --release 18
 //JAVA_OPTIONS  --enable-preview
 
+import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.function.*;
 import java.util.stream.*;
@@ -79,10 +81,9 @@ class autoscore {
         System.out.println("""
 
                 Note,
-                this tool doesn't know about any specific tournament rules, i.e
-                if points are awarded in some special way, or if players are
-                eliminated in rounds etc etc. It tries to estimate a result
-                table based on games played with Win 1, Draw 0.5, Loss 0
+                this tool doesn't know about all tournament formats,
+                but tries to estimate a result table based on number
+                of wins etc.
 
                 """);
 
@@ -93,12 +94,23 @@ class autoscore {
             .filter(broadcast -> broadcast.rounds().stream().anyMatch(round -> round.finished() == false))
             .toList();
 
-        // 2. Interactively let use choose a broadcast
-        var broadcast = interactivelyPickOne(notFinishedBroadcasts, bc -> bc.tour().name()).orElseThrow();
+        Broadcast broadcast = null;
+        if (args.length > 0) {
+            try {
+                int input = Integer.parseInt(args[0]);
+                broadcast = notFinishedBroadcasts.get(input-1);
+            } catch(Exception e) {
+                // ignore
+            }
+        }
+
+        if (broadcast == null) {
+            // 2. Interactively let use choose a broadcast
+            broadcast = interactivelyPickOne(notFinishedBroadcasts, bc -> bc.tour().name()).orElseThrow();
+        }
 
         // 3. Render the results table for that tournament
         render(client, broadcast);
-
     }
 
     static <T> Optional<T> interactivelyPickOne(List<T> choices, Function<T, String> toString) {
@@ -130,7 +142,7 @@ class autoscore {
         }
     }
 
-    record SubEvent(String name, List<Round> rounds) {}
+    record SubEvent(String name, List<Round> rounds, BiFunction<String, Result, Double> pointsForPlayer) {}
 
     static List<SubEvent> parseSubEvents(Broadcast broadcast) {
         var allRounds = broadcast.rounds().stream().sorted(Comparator.comparingLong(Round::startsTime)).toList();
@@ -144,7 +156,7 @@ class autoscore {
             var round = allRounds.get(i);
 
             if (! round.name().startsWith(firstWord)) {
-                subEvents.add(new SubEvent(firstWord, List.copyOf(eventRounds)));
+                subEvents.add(new SubEvent(firstWord, List.copyOf(eventRounds), pointsForPlayer(broadcast.tour().name())));
                 eventRounds.clear();
                 firstWord = firstWord(round);
             }
@@ -153,7 +165,7 @@ class autoscore {
         }
 
         String name = subEvents.isEmpty() ? broadcast.tour().name() : firstWord;
-        subEvents.add(new SubEvent(name, List.copyOf(eventRounds)));
+        subEvents.add(new SubEvent(name, List.copyOf(eventRounds), pointsForPlayer(broadcast.tour().name())));
 
         return subEvents;
     }
@@ -173,7 +185,19 @@ class autoscore {
                 case Round r && r.ongoing()  -> "\uD83D\uDD34";
                 default                      -> "\u2B55";
             };
-            System.out.println(" %s %s".formatted(icon, round.name()));
+            var duration = Duration.between(ZonedDateTime.now(), round.startsAt());
+
+            String time = switch(duration) {
+                case Duration d && d.isPositive() && d.toMinutes() <= 60 -> "in %d minutes".formatted(d.toMinutes());
+                case Duration d && d.isPositive() && d.toHours() <= 24 -> "in %d hours".formatted(d.toHours());
+                case Duration d && d.isPositive() && d.toDays() <= 7 -> "in %d days".formatted(d.toDays());
+                case Duration d && d.isNegative() && Math.abs(d.toMinutes()) <= 60 -> "%d minutes ago".formatted(Math.abs(d.toMinutes()));
+                case Duration d && d.isNegative() && Math.abs(d.toHours()) <= 24 -> "%d hours ago".formatted(Math.abs(d.toHours()));
+                case Duration d && d.isNegative() && Math.abs(d.toDays()) <= 7 -> "%d days ago".formatted(Math.abs(d.toDays()));
+
+                default -> "at %s".formatted(round.startsAt().toLocalDate());
+            };
+            System.out.println(" %s %s - %s".formatted(icon, round.name(), round.ongoing() ? "ongoing" : time));
         });
         //:
 
@@ -198,59 +222,144 @@ class autoscore {
             .map(Tag::value)
             .collect(Collectors.toSet());
 
-        Map<String, List<Pgn>> gamesByPlayer = players.stream()
+        Map<String, List<Result>> resultsByPlayer = players.stream()
             .collect(Collectors.toMap(
-                        player -> player,
-                        player -> finishedGames.stream()
-                                      .filter(pgn -> pgn.tags().contains(new Tag("White", player)) ||
-                                                     pgn.tags().contains(new Tag("Black", player)))
-                                      .toList()));
+                player -> player,
+                player -> finishedGames.stream()
+                            .filter(pgn -> pgn.tags().contains(new Tag("White", player)) ||
+                                           pgn.tags().contains(new Tag("Black", player)))
+                            .map(pgn -> {
+                                String white = pgn.tagMap().get("White");
+                                String opponent = white.equals(player) ? pgn.tagMap().get("Black") : white;
+                                return (Result) switch(pgn.tagMap().getOrDefault("Result", "")) {
+                                    case String s && s.equals("1/2-1/2") -> Result.draw(player, opponent, player.equals(white));
+                                    case String s && s.equals("1-0")     -> Result.whiteWin(player, opponent, player.equals(white));
+                                    case String s && s.equals("0-1")     -> Result.blackWin(player, opponent, player.equals(white));
+                                    case String s && s.equals("*")       -> new Result.Ongoing(player, opponent);
+                                    default                              -> new Result.NoResult(player, opponent);
+                                };
+                            })
+                            .toList()));
 
-        var totals = players.stream()
+        List<Total> totals = players.stream()
             .map(player -> new Total(
                         player,
-                        gamesByPlayer.getOrDefault(player, List.of())
+                        resultsByPlayer.getOrDefault(player, List.of())
                             .stream()
-                            .mapToDouble(pgn -> pointsForPlayer(player, pgn))
+                            .mapToDouble(result -> subEvent.pointsForPlayer().apply(player, result))
                             .sum()))
-            .sorted(comparator(finishedGames))
+            .sorted(comparator(resultsByPlayer.values().stream().flatMap(List::stream).toList()))
             .toList();
 
         System.out.println();
         System.out.println("Standings:");
         for (var total : totals) {
-            System.out.println("%3s %s".formatted(total.points(), total.player()));
+            System.out.println("%3s %s".formatted(format(total.points()), total.player()));
         }
+    }
+
+    static String format(double points) {
+        return (int) points == points ? String.valueOf((int)points) : String.valueOf(points);
     }
 
     record Total(String player, double points) {}
 
-    static double pointsForPlayer(String player, Pgn pgn) {
-        return switch(pgn.tagMap().getOrDefault("Result", "*")) {
-            case String s && s.equals("1/2-1/2") -> 0.5;
-            case String s && s.equals("1-0") && pgn.tagMap().getOrDefault("White", "").equals(player) -> 1.0;
-            case String s && s.equals("0-1") && pgn.tagMap().getOrDefault("Black", "").equals(player) -> 1.0;
-            default -> 0;
+    sealed interface Result {
+        String player();
+        String opponent();
+
+        static Result draw(String player, String opponent, boolean white) {
+            return white ? new Draw.White(player, opponent) : new Draw.Black(player, opponent);
+        }
+
+        static Result whiteWin(String player, String opponent, boolean white) {
+            return white ? new Win.White(player, opponent) : new Loss.White(player, opponent);
+        }
+
+        static Result blackWin(String player, String opponent, boolean white) {
+            return white ? new Loss.White(player, opponent) : new Win.Black(player, opponent);
+        }
+
+
+        sealed interface Win extends Result {
+            record White(String player, String opponent) implements Win {}
+            record Black(String player, String opponent) implements Win {}
+        }
+
+        sealed interface Draw extends Result {
+            record White(String player, String opponent) implements Draw {}
+            record Black(String player, String opponent) implements Draw {}
+         }
+        sealed interface Loss extends Result {
+            record White(String player, String opponent) implements Loss {}
+            record Black(String player, String opponent) implements Loss {}
+         }
+
+        record Ongoing(String player, String opponent) implements Result {}
+        record NoResult(String player, String opponent) implements Result {}
+    }
+
+    static BiFunction<String, Result, Double> pointsForPlayer(String event) {
+        return switch(event) {
+            case String s && s.toLowerCase().contains("champions chess tour") ->
+                (player, result) -> Double.valueOf(switch(result) {
+                case Result.Win w  && w.player().equals(player) -> 3;
+                case Result.Loss l && l.player().equals(player) -> 0;
+                case Result.Draw d -> 1;
+                default -> 0;
+            });
+            default ->
+                (player, result) -> Double.valueOf(switch(result) {
+                case Result.Win w  && w.player().equals(player) -> 1;
+                case Result.Loss l && l.player().equals(player) -> 0;
+                case Result.Draw d -> 0.5;
+                default -> 0;
+            });
         };
     }
 
-    static Comparator<Total> comparator(List<Pgn> allGames) {
-        return Comparator.comparingDouble(Total::points)
-            .reversed()
-            .thenComparing( (t1, t2) -> {
-                var gamesBetweenBoth = allGames.stream()
-                    .filter(pgn -> Set.of(t1.player(), t2.player())
-                            .containsAll(List.of(pgn.tagMap().getOrDefault("White",""),
-                                                 pgn.tagMap().getOrDefault("Black","")))
-                           )
-                    .toList();
-                double player1Points = gamesBetweenBoth.stream()
-                    .mapToDouble(pgn -> pointsForPlayer(t1.player(), pgn))
-                    .sum();
-                double player2Points = gamesBetweenBoth.stream()
-                    .mapToDouble(pgn -> pointsForPlayer(t2.player(), pgn))
-                    .sum();
-                return Double.compare(player1Points, player2Points);
-            });
+    static Comparator<Total> comparator(List<Result> results) {
+        var points = Comparator.comparingDouble(Total::points);
+        var directEncounters = (Comparator<Total>) (t1, t2) ->
+                Integer.compare(
+                    (int) results.stream()
+                            .filter(result -> result.player().equals(t1.player()))
+                            .filter(result -> result.opponent().equals(t2.player()))
+                            .filter(result -> result instanceof Result.Win)
+                            .count(),
+                    (int) results.stream()
+                            .filter(result -> result.player().equals(t2.player()))
+                            .filter(result -> result.opponent().equals(t1.player()))
+                            .filter(result -> result instanceof Result.Win)
+                            .count()
+                    );
+        var wins = (Comparator<Total>) (t1, t2) ->
+                Integer.compare(
+                    (int) results.stream()
+                            .filter(result -> result.player().equals(t1.player()))
+                            .filter(result -> result instanceof Result.Win)
+                            .count(),
+                    (int) results.stream()
+                            .filter(result -> result.player().equals(t2.player()))
+                            .filter(result -> result instanceof Result.Win)
+                            .count()
+                        );
+        var winsWithBlack = (Comparator<Total>) (t1, t2) ->
+                Integer.compare(
+                    (int) results.stream()
+                            .filter(result -> result.player().equals(t1.player()))
+                            .filter(result -> result instanceof Result.Win.Black)
+                            .count(),
+                    (int) results.stream()
+                            .filter(result -> result.player().equals(t2.player()))
+                            .filter(result -> result instanceof Result.Win.Black)
+                            .count()
+                        );
+
+        return points
+            .thenComparing(directEncounters)
+            .thenComparing(wins)
+            .thenComparing(winsWithBlack)
+            .reversed();
     }
 }

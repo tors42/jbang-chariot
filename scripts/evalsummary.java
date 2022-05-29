@@ -39,15 +39,15 @@ class evalsummary {
 
         System.out.println("""
                 White (%s)
-                 Inaccuracies: %2d
-                 Mistakes:     %2d
-                 Blunders:     %2d
+                 Inaccuracies: %3d
+                 Mistakes:     %3d
+                 Blunders:     %3d
                  ACPL:         %3d
 
                 Black (%s)
-                 Inaccuracies: %2d
-                 Mistakes:     %2d
-                 Blunders:     %2d
+                 Inaccuracies: %3d
+                 Mistakes:     %3d
+                 Blunders:     %3d
                  ACPL:         %3d
                 """.formatted(
                     game.players().white().name(),

@@ -1,14 +1,9 @@
-//DEPS io.github.tors42:chariot:0.0.28
-//JAVA 17
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+//DEPS io.github.tors42:chariot:0.0.35
+//JAVA 17+
+import java.util.*;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.function.*;
+import java.util.stream.*;
 
 import chariot.Client;
 import chariot.model.Game;

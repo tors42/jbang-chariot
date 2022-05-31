@@ -1,12 +1,12 @@
-//DEPS io.github.tors42:chariot:0.0.33
+//DEPS io.github.tors42:chariot:0.0.35
 //JAVA 18+
 //JAVAC_OPTIONS --enable-preview --release 18
 //JAVA_OPTIONS  --enable-preview
 
+import chariot.model.Pgn;
+
 import java.nio.file.*;
 import java.util.*;
-import java.util.function.Consumer;
-import java.util.stream.StreamSupport;
 
 class flatten {
 
@@ -121,66 +121,9 @@ class flatten {
         }
     }
 
-    record Tag(String name, String value) {
-        static Tag parse(String line) {
-            return new Tag(
-                    line.substring(1, line.indexOf(' ')),
-                    line.substring(line.indexOf('"')+1, line.length()-2)
-                    );
-        }
-        @Override
-        public String toString() { return "[%s \"%s\"]".formatted(name, value); }
-    }
-
-    record Pgn(List<Tag> tags, Moves moves) {
-        @Override
-        public String toString() {
-            return String.join("\n\n",
-                    String.join("\n", tags.stream().map(Object::toString).toList()),
-                    Moves.render(moves)
-                    );
-        }
-    }
-
-    /**
-     * An iterator of Pgn-modelled games.
-     * It lazily reads line after line of PGN data, possibly many games,
-     * and assembles these lines into Pgn models.
-     */
-    record PgnSpliterator(Iterator<String> iterator) implements Spliterator<Pgn> {
-        @Override
-        public boolean tryAdvance(Consumer<? super Pgn> action) {
-            List<String> tagList = readGroup(iterator);
-            List<String> moveList = readGroup(iterator);
-            if (tagList.isEmpty() && moveList.isEmpty()) return false;
-
-            var moves = Moves.parse(String.join(" ", moveList));
-            var tags = tagList.stream().map(Tag::parse).toList();
-            action.accept(new Pgn(tags, moves));
-            return true;
-        }
-
-        List<String> readGroup(Iterator<String> iterator) {
-            var list = new ArrayList<String>();
-            while (iterator.hasNext()) {
-                String line = iterator.next();
-                if (! line.isBlank()) {
-                    list.add(line);
-                    continue;
-                }
-                if (! list.isEmpty()) break;
-            }
-            return list;
-        }
-
-        @Override public Spliterator<Pgn> trySplit() { return null; }
-        @Override public long estimateSize() { return Long.MAX_VALUE; }
-        @Override public int characteristics() { return ORDERED; }
-    }
-
     static List<Pgn> flattenPgn(Pgn pgn) {
         List<Moves> flatList = new ArrayList<>();
-        Moves.flatList(pgn.moves(), flatList);
+        Moves.flatList(Moves.parse(pgn.moves()), flatList);
         List<List<Moves>> listOfFlatLists = new ArrayList<>();
         listOfFlatLists.add(flatList);
         while(true) {
@@ -217,13 +160,13 @@ class flatten {
         for (int i = 0; i < lines; i++) {
             final int count = i+1;
             String pgnData = String.join(" ", listOfFlatLists.get(i).stream().map(Moves::render).toList());
-            List<Tag> tags = pgn.tags().stream()
+            List<Pgn.Tag> tags = pgn.tags().stream()
                 .map(tag -> tag.name().equals("Event") ?
-                        new Tag("Event", tag.value() + " (%d/%d)".formatted(count, lines)) :
+                        Pgn.Tag.of("Event", tag.value() + " (%d/%d)".formatted(count, lines)) :
                         tag
                         )
                 .toList();
-            pgns.add(new Pgn(tags, Moves.parse(pgnData)));
+            pgns.add(Pgn.of(tags, pgnData));
         }
         return pgns;
     }
@@ -238,12 +181,11 @@ class flatten {
 
         var client = args.length == 2 ? chariot.Client.auth(args[1]) : chariot.Client.basic();
 
-        var iterator = client.studies()
+        var chapterList = client.studies()
             .exportChaptersByStudyId(studyId)
             .stream()
-            .iterator();
+            .toList();
 
-        var chapterList = StreamSupport.stream(new PgnSpliterator(iterator), false).toList();
 
         if (chapterList.isEmpty()) { System.out.println("No chapters found in " + studyId); System.exit(0); }
 
@@ -255,8 +197,7 @@ class flatten {
             var chapterFile = Files.createTempFile(tmpDir, "chapter-%d-".formatted(i+1), ".pgn");
             Files.writeString(chapterFile, pgn.toString() + "\n",
                     StandardOpenOption.CREATE,
-                    StandardOpenOption.WRITE,
-                    StandardOpenOption.APPEND);
+                    StandardOpenOption.WRITE);
             System.out.println("Wrote chapters to " + chapterFile.toAbsolutePath());
 
             String flattenedPgns = String.join("\n\n", flattenPgn(pgn).stream()
@@ -266,8 +207,7 @@ class flatten {
             var flattenedLinesFile = Files.createTempFile(tmpDir, "flattened-", ".pgn");
             Files.writeString(flattenedLinesFile, flattenedPgns + "\n",
                     StandardOpenOption.CREATE,
-                    StandardOpenOption.WRITE,
-                    StandardOpenOption.APPEND);
+                    StandardOpenOption.WRITE);
             System.out.println("Wrote flattened lines to " + flattenedLinesFile.toAbsolutePath());
         }
     }

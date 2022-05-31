@@ -1,10 +1,9 @@
-//DEPS io.github.tors42:chariot:0.0.34
+//DEPS io.github.tors42:chariot:0.0.35
 //JAVA 18+
 //JAVAC_OPTIONS --enable-preview --release 18
 //JAVA_OPTIONS  --enable-preview
 
-import java.time.Duration;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.util.*;
 import java.util.function.*;
 import java.util.stream.*;
@@ -12,69 +11,9 @@ import java.util.stream.*;
 import chariot.Client;
 import chariot.model.Broadcast;
 import chariot.model.Broadcast.Round;
+import chariot.model.Pgn;
 
 class autoscore {
-
-    record Tag(String name, String value) {
-        static Tag parse(String line) {
-            return new Tag(
-                    line.substring(1, line.indexOf(' ')),
-                    line.substring(line.indexOf('"')+1, line.length()-2)
-                    );
-        }
-        @Override
-        public String toString() { return "[%s \"%s\"]".formatted(name, value); }
-    }
-
-    record Pgn(List<Tag> tags, String moves) {
-        @Override
-        public String toString() {
-            return String.join("\n\n",
-                    String.join("\n", tags.stream().map(Object::toString).toList()),
-                    moves
-                    );
-        }
-
-        Map<String, String> tagMap() {
-            return tags().stream().collect(Collectors.toMap(Tag::name, Tag::value));
-        }
-    }
-
-    /**
-     * An iterator of Pgn-modelled games.
-     * It lazily reads line after line of PGN data, possibly many games,
-     * and assembles these lines into Pgn models.
-     */
-    record PgnSpliterator(Iterator<String> iterator) implements Spliterator<Pgn> {
-        @Override
-        public boolean tryAdvance(Consumer<? super Pgn> action) {
-            List<String> tagList = readGroup(iterator);
-            List<String> moveList = readGroup(iterator);
-            if (tagList.isEmpty() && moveList.isEmpty()) return false;
-
-            var moves = String.join(" ", moveList);
-            var tags = tagList.stream().map(Tag::parse).toList();
-            action.accept(new Pgn(tags, moves));
-            return true;
-        }
-
-        List<String> readGroup(Iterator<String> iterator) {
-            var list = new ArrayList<String>();
-            while (iterator.hasNext()) {
-                String line = iterator.next();
-                if (! line.isBlank()) {
-                    list.add(line);
-                    continue;
-                }
-                if (! list.isEmpty()) break;
-            }
-            return list;
-        }
-
-        @Override public Spliterator<Pgn> trySplit() { return null; }
-        @Override public long estimateSize() { return Long.MAX_VALUE; }
-        @Override public int characteristics() { return ORDERED; }
-    }
 
     public static void main(String[] args) {
 
@@ -207,27 +146,21 @@ class autoscore {
         if (finishedRounds.isEmpty()) return;
 
         var finishedGames = finishedRounds.stream()
-            .flatMap(round ->
-                    StreamSupport.stream(
-                        new PgnSpliterator(
-                            client.broadcasts().exportOneRoundPgn(round.id())
-                            .stream()
-                            .iterator()),
-                        false))
+            .flatMap(round -> client.broadcasts().exportOneRoundPgn(round.id()).stream())
             .toList();
 
         Set<String> players = finishedGames.stream()
             .flatMap(pgn -> pgn.tags().stream())
             .filter(tag -> tag.name().equals("White") || tag.name().equals("Black"))
-            .map(Tag::value)
+            .map(Pgn.Tag::value)
             .collect(Collectors.toSet());
 
         Map<String, List<Result>> resultsByPlayer = players.stream()
             .collect(Collectors.toMap(
                 player -> player,
                 player -> finishedGames.stream()
-                            .filter(pgn -> pgn.tags().contains(new Tag("White", player)) ||
-                                           pgn.tags().contains(new Tag("Black", player)))
+                            .filter(pgn -> pgn.tags().contains(Pgn.Tag.of("White", player)) ||
+                                           pgn.tags().contains(Pgn.Tag.of("Black", player)))
                             .map(pgn -> {
                                 String white = pgn.tagMap().get("White");
                                 String opponent = white.equals(player) ? pgn.tagMap().get("Black") : white;

@@ -21,7 +21,10 @@
         },
         "autoscore": {
             "script-ref": "scripts/autoscore.java"
+        },
+        "oauth2pkce": {
+            "script-ref": "scripts/oauth2pkce.java"
         }
-     },
+      },
     "templates": {}
 }

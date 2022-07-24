@@ -1,4 +1,4 @@
-//DEPS io.github.tors42:chariot:0.0.43
+//DEPS io.github.tors42:chariot:0.0.44
 //JAVA 17+
 import chariot.Client;
 
@@ -11,7 +11,7 @@ class membercount {
 
         String message = client.teams().byTeamId(teamId)
             .map(team -> "%s has %d members!%n".formatted(team.name(), team.nbMembers()))
-            .getOrElse("Couldn't find team with id %s".formatted(teamId));
+            .orElse("Couldn't find team with id %s".formatted(teamId));
 
         System.out.println(message);
     }

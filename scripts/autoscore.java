@@ -1,4 +1,4 @@
-//DEPS io.github.tors42:chariot:0.0.43
+//DEPS io.github.tors42:chariot:0.0.44
 //JAVA 18+
 //JAVAC_OPTIONS --enable-preview --release 18
 //JAVA_OPTIONS  --enable-preview

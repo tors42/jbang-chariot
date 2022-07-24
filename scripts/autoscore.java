@@ -1,4 +1,4 @@
-//DEPS io.github.tors42:chariot:0.0.35
+//DEPS io.github.tors42:chariot:0.0.43
 //JAVA 18+
 //JAVAC_OPTIONS --enable-preview --release 18
 //JAVA_OPTIONS  --enable-preview
@@ -28,34 +28,22 @@ class autoscore {
 
         var client = chariot.Client.basic();
 
-        // 1. Get official broadcast list, show ongoing. Todo, option to show finished too
-        var notFinishedBroadcasts = client.broadcasts().official().stream()
-            .filter(broadcast -> broadcast.rounds().stream().anyMatch(round -> round.finished() == false))
-            .toList();
+        // 1. Get 50 official broadcasts.
+        var broadcasts = client.broadcasts().official(50).stream().toList();
 
-        Broadcast broadcast = null;
-        if (args.length > 0) {
-            try {
-                int input = Integer.parseInt(args[0]);
-                broadcast = notFinishedBroadcasts.get(input-1);
-            } catch(Exception e) {
-                // ignore
-            }
-        }
+        Broadcast broadcast = switch(args.length) {
+            case 0  -> interactivelyPickOne(broadcasts, bc -> bc.tour().name()).orElseThrow();
+            default -> broadcasts.get(Integer.parseInt(args[0])-1);
+        };
 
-        if (broadcast == null) {
-            // 2. Interactively let use choose a broadcast
-            broadcast = interactivelyPickOne(notFinishedBroadcasts, bc -> bc.tour().name()).orElseThrow();
-        }
-
-        // 3. Render the results table for that tournament
+        //: Render the results table for that tournament
         render(client, broadcast);
     }
 
     static <T> Optional<T> interactivelyPickOne(List<T> choices, Function<T, String> toString) {
         if (choices.isEmpty()) return Optional.empty();
 
-        System.out.println("Ongoing Broadcasts");
+        System.out.println("Broadcasts");
         for (int i = 0; i < choices.size(); i++)
             System.out.println("%2d. %s".formatted(i+1, toString.apply(choices.get(i))));
 
@@ -84,7 +72,7 @@ class autoscore {
     record SubEvent(String name, List<Round> rounds, BiFunction<String, Result, Double> pointsForPlayer) {}
 
     static List<SubEvent> parseSubEvents(Broadcast broadcast) {
-        var allRounds = broadcast.rounds().stream().sorted(Comparator.comparingLong(Round::startsTime)).toList();
+        var allRounds = broadcast.rounds().stream().filter(r -> r.startsTime() != null).sorted(Comparator.comparingLong(Round::startsTime)).toList();
 
         if (allRounds.isEmpty()) return List.of();
 

@@ -1,4 +1,4 @@
-//DEPS io.github.tors42:chariot:0.0.35
+//DEPS io.github.tors42:chariot:0.0.43
 //JAVA 17+
 import java.util.*;
 import java.util.concurrent.atomic.LongAdder;
@@ -12,7 +12,6 @@ import chariot.model.GameUser.User;
 class opponents {
 
     public static void main(String[] args) {
-
         if (args.length == 0) {
             System.out.println("""
                 Run the program with the following parameters,
@@ -22,7 +21,7 @@ class opponents {
                 userId: The Lichess user id of the user you want to check top opponents for
                 maxNumberOfOpponents: (Optional) A limit of how many opponents you want to show (default 10)
                 """);
-            System.exit(0);
+            return;
         }
 
         String userId = args[0];
@@ -44,7 +43,7 @@ class opponents {
             .limit(maxOpponents)
             .toList();
 
-        opponentList.forEach(opponent -> System.out.println("%20s %3d".formatted(opponent.id(), opponent.numGames())));
+        opponentList.forEach(opponent -> System.out.format("%20s %3d%n", opponent.id(), opponent.numGames()));
     }
 
     static Map<String, List<Game>> fetchGamesAgainstHumanOpponents(String userId) {

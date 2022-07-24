@@ -1,4 +1,4 @@
-//DEPS io.github.tors42:chariot:0.0.35
+//DEPS io.github.tors42:chariot:0.0.43
 //JAVA 17+
 
 import chariot.Client;
@@ -11,49 +11,50 @@ class evalsummary {
 
         var client = Client.basic();
 
-        var game = client.games().byGameId(gameId).get();
+        client.games().byGameId(gameId).ifPresent(game -> {
 
-        if (game.analysis().isEmpty()) {
+            if (game.analysis().isEmpty()) {
+                System.out.println("""
+                    The game has not been analyzed. Try with an analyzed game.
+
+                    White (%s)
+                     Inaccuracies: ?
+                     Mistakes:     ?
+                     Blunders:     ?
+                     ACPL:         ?
+
+                    Black (%s)
+                     Inaccuracies: ?
+                     Mistakes:     ?
+                     Blunders:     ?
+                     ACPL:         ?
+                     """.formatted(
+                         game.players().white().name(),
+                         game.players().black().name()));
+                 return;
+            }
+
+            var wa = game.players().white().analysis().get();
+            var ba = game.players().black().analysis().get();
+
             System.out.println("""
-                The game has not been analyzed. Try with an analyzed game.
+                    White (%s)
+                     Inaccuracies: %3d
+                     Mistakes:     %3d
+                     Blunders:     %3d
+                     ACPL:         %3d
 
-                White (%s)
-                 Inaccuracies: ?
-                 Mistakes:     ?
-                 Blunders:     ?
-                 ACPL:         ?
-
-                Black (%s)
-                 Inaccuracies: ?
-                 Mistakes:     ?
-                 Blunders:     ?
-                 ACPL:         ?
-                 """.formatted(
-                     game.players().white().name(),
-                     game.players().black().name()));
-             return;
-        }
-
-        var wa = game.players().white().analysis().get();
-        var ba = game.players().black().analysis().get();
-
-        System.out.println("""
-                White (%s)
-                 Inaccuracies: %3d
-                 Mistakes:     %3d
-                 Blunders:     %3d
-                 ACPL:         %3d
-
-                Black (%s)
-                 Inaccuracies: %3d
-                 Mistakes:     %3d
-                 Blunders:     %3d
-                 ACPL:         %3d
-                """.formatted(
-                    game.players().white().name(),
-                    wa.inaccuracy(), wa.mistake(), wa.blunder(), wa.acpl(),
-                    game.players().black().name(),
-                    ba.inaccuracy(), ba.mistake(), ba.blunder(), ba.acpl()
-                    ));
+                    Black (%s)
+                     Inaccuracies: %3d
+                     Mistakes:     %3d
+                     Blunders:     %3d
+                     ACPL:         %3d
+                    """.formatted(
+                        game.players().white().name(),
+                        wa.inaccuracy(), wa.mistake(), wa.blunder(), wa.acpl(),
+                        game.players().black().name(),
+                        ba.inaccuracy(), ba.mistake(), ba.blunder(), ba.acpl()
+                        ));
+            });
     }
 }

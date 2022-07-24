@@ -1,4 +1,4 @@
-//DEPS io.github.tors42:chariot:0.0.35
+//DEPS io.github.tors42:chariot:0.0.43
 //JAVA 18+
 //JAVAC_OPTIONS --enable-preview --release 18
 //JAVA_OPTIONS  --enable-preview
@@ -187,7 +187,7 @@ class flatten {
             .toList();
 
 
-        if (chapterList.isEmpty()) { System.out.println("No chapters found in " + studyId); System.exit(0); }
+        if (chapterList.isEmpty()) { System.out.println("No chapters found in " + studyId); return; }
 
         var tmpDir = Files.createTempDirectory("study-" + studyId + "-");
 

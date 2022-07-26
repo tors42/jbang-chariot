@@ -128,8 +128,6 @@ class autoscore {
         });
         //:
 
-        // Todo, render ongoing games too
-
         var finishedRounds = subEvent.rounds().stream().filter(r -> r.finished()).toList();
         if (finishedRounds.isEmpty()) return;
 
@@ -153,11 +151,11 @@ class autoscore {
                                 String white = pgn.tagMap().get("White");
                                 String opponent = white.equals(player) ? pgn.tagMap().get("Black") : white;
                                 return (Result) switch(pgn.tagMap().getOrDefault("Result", "")) {
-                                    case String s && s.equals("1/2-1/2") -> Result.draw(player, opponent, player.equals(white));
-                                    case String s && s.equals("1-0")     -> Result.whiteWin(player, opponent, player.equals(white));
-                                    case String s && s.equals("0-1")     -> Result.blackWin(player, opponent, player.equals(white));
-                                    case String s && s.equals("*")       -> new Result.Ongoing(player, opponent);
-                                    default                              -> new Result.NoResult(player, opponent);
+                                    case "1/2-1/2" -> Result.draw(player, opponent, player.equals(white));
+                                    case "1-0"     -> Result.whiteWin(player, opponent, player.equals(white));
+                                    case "0-1"     -> Result.blackWin(player, opponent, player.equals(white));
+                                    case "*"       -> new Result.Ongoing(player, opponent);
+                                    default        -> new Result.NoResult(player, opponent);
                                 };
                             })
                             .toList()));

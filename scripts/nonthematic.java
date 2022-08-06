@@ -1,4 +1,4 @@
-//DEPS io.github.tors42:chariot:0.0.44
+//DEPS io.github.tors42:chariot:0.0.45
 //JAVA 17+
 import chariot.Client;
 import chariot.model.Enums.GameVariant;
@@ -36,7 +36,7 @@ class nonthematic {
                         writer.flush();
                         written.increment();
                     } catch(Exception e) {
-                        throw new RuntimException(e);
+                        throw new RuntimeException(e);
                     }});
 
             if (written.intValue() > 0) {

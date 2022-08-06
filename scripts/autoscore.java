@@ -1,4 +1,4 @@
-//DEPS io.github.tors42:chariot:0.0.44
+//DEPS io.github.tors42:chariot:0.0.45
 //JAVA 18+
 //JAVAC_OPTIONS --enable-preview --release 18
 //JAVA_OPTIONS  --enable-preview
@@ -36,7 +36,7 @@ class autoscore {
             default -> broadcasts.get(Integer.parseInt(args[0])-1);
         };
 
-        //: Render the results table for that tournament
+        // Render the results table for that tournament
         render(client, broadcast);
     }
 
@@ -126,7 +126,6 @@ class autoscore {
             };
             System.out.println(" %s %s - %s".formatted(icon, round.name(), round.ongoing() ? "ongoing" : time));
         });
-        //:
 
         var finishedRounds = subEvent.rounds().stream().filter(r -> r.finished()).toList();
         if (finishedRounds.isEmpty()) return;

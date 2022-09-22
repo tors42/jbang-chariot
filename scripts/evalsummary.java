@@ -1,4 +1,4 @@
-//DEPS io.github.tors42:chariot:0.0.46
+//DEPS io.github.tors42:chariot:0.0.53
 //JAVA 17+
 
 import chariot.Client;
@@ -22,12 +22,14 @@ class evalsummary {
                      Mistakes:     ?
                      Blunders:     ?
                      ACPL:         ?
+                     Accuracy(%%):  ?
 
                     Black (%s)
                      Inaccuracies: ?
                      Mistakes:     ?
                      Blunders:     ?
                      ACPL:         ?
+                     Accuracy(%%):  ?
                      """.formatted(
                          game.players().white().name(),
                          game.players().black().name()));
@@ -43,17 +45,19 @@ class evalsummary {
                      Mistakes:     %3d
                      Blunders:     %3d
                      ACPL:         %3d
+                     Accuracy(%%):  %3d
 
                     Black (%s)
                      Inaccuracies: %3d
                      Mistakes:     %3d
                      Blunders:     %3d
                      ACPL:         %3d
+                     Accuracy(%%):  %3d
                     """.formatted(
                         game.players().white().name(),
-                        wa.inaccuracy(), wa.mistake(), wa.blunder(), wa.acpl(),
+                        wa.inaccuracy(), wa.mistake(), wa.blunder(), wa.acpl(), wa.accuracy(),
                         game.players().black().name(),
-                        ba.inaccuracy(), ba.mistake(), ba.blunder(), ba.acpl()
+                        ba.inaccuracy(), ba.mistake(), ba.blunder(), ba.acpl(), ba.accuracy()
                         ));
             });
     }

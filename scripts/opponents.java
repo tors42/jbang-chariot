@@ -1,4 +1,5 @@
-//DEPS io.github.tors42:chariot:0.0.46
+//DEPS io.github.tors42:chariot:0.0.57
+//DEPS info.picocli:picocli:4.7.0
 //JAVA 17+
 import java.util.*;
 import java.util.concurrent.atomic.LongAdder;
@@ -6,35 +7,78 @@ import java.util.function.*;
 import java.util.stream.*;
 
 import chariot.Client;
-import chariot.model.Game;
+import chariot.model.*;
 import chariot.model.GameUser.User;
 
-class opponents {
+import picocli.CommandLine;
+import picocli.CommandLine.*;
 
-    public static void main(String[] args) {
-        if (args.length == 0) {
-            System.out.println("""
-                Run the program with the following parameters,
+@CommandLine.Command(name = "opponents", sortOptions = false, sortSynopsis = false, usageHelpAutoWidth = true, showDefaultValues = true)
+class opponents implements Runnable {
 
-                    $ opponents <userId> [maxNumberOfOpponents]
+    @Option(names = "--user", required = true, description = "The Lichess user id of the user you want to check top opponents.")
+    String userId;
 
-                userId: The Lichess user id of the user you want to check top opponents for
-                maxNumberOfOpponents: (Optional) A limit of how many opponents you want to show (default 10)
-                """);
-            return;
-        }
+    @Option(names = "--max", defaultValue = "10", description = "A limit of how many opponents you want to show")
+    int maxOpponents;
 
-        String userId = args[0];
-        int maxOpponents = args.length > 1 ? Integer.valueOf(args[1]) : 10;
+    @ArgGroup(exclusive = true)
+    Exclusive option;
 
-        printTopOpponents(userId, maxOpponents);
+    static class Exclusive {
+        @Option(names = "--generate-token",
+                description = "(Not needed - enables faster download) " +
+                              "Use OAuth2 to dynamically create a token " +
+                              "by visiting Lichess URL and choosing to grant access or not.")
+        boolean oauth = false;
+        @Option(names = "--token",
+                showDefaultValue = CommandLine.Help.Visibility.NEVER,
+                defaultValue = "${env:LICHESS_API_TOKEN}",
+                description = "(Not needed - enables faster download) " +
+                              "A pre-created API token. Note, no scopes needed. " +
+                              "Token can be created with URL: " +
+                              "https://lichess.org/account/oauth/token/create?description=Faster+game+download " +
+                              "May be set by environment variable LICHESS_API_TOKEN")
+        String token = null;
     }
 
-    static void printTopOpponents(String userId, int maxOpponents) {
+    @Option(names = { "-h", "--help" }, usageHelp = true, description = "Shows this help message")
+    boolean help = false;
 
-        var map = fetchGamesAgainstHumanOpponents(userId);
+    Runnable deleteGeneratedToken = () -> {};
 
-        // Todo, include W/D/L?
+    public void run() {
+
+        var client = Client.basic();
+
+        if (option != null) {
+            if (option.oauth) {
+                var urlAndToken = client.account().oauthPKCE();
+                System.out.println("""
+
+                        Visit the following URL and choose to grant access or not,
+                        %s
+
+                        """.formatted(urlAndToken.url()));
+                try {
+                    client = Client.auth(urlAndToken.token().get());
+                } catch (Exception e) {
+                    System.out.println("OAuth2 failed, continuing with slow download. (%s)".formatted(e.getMessage()));
+                }
+            } else if (option.token != null) {
+                var auth = Client.auth(option.token);
+                if (auth.account().profile() instanceof Fail<?> f) {
+                    System.out.println("Token failed, continuing with slow download. (%s)".formatted(f));
+                } else {
+                    System.out.println("Using token for faster download");
+                    client = auth;
+                    deleteGeneratedToken = () -> auth.account().revokeToken();
+                }
+            }
+        }
+
+        var map = fetchGamesAgainstHumanOpponents(userId, client);
+
         record Opponent(String id, int numGames) {}
 
         var opponentList = map.entrySet().stream()
@@ -44,9 +88,11 @@ class opponents {
             .toList();
 
         opponentList.forEach(opponent -> System.out.format("%20s %3d%n", opponent.id(), opponent.numGames()));
+
+        deleteGeneratedToken.run();
     }
 
-    static Map<String, List<Game>> fetchGamesAgainstHumanOpponents(String userId) {
+    static Map<String, List<Game>> fetchGamesAgainstHumanOpponents(String userId, Client client) {
 
         Predicate<String> notSelf = Predicate.not(userId::equals);
 
@@ -58,12 +104,10 @@ class opponents {
         Function<Game, String> opponentName = game -> Stream.of(
                 game.players().white(),
                 game.players().black())
-            .map(u -> (User) u)
+            .map(User.class::cast)
             .map(u -> u.user().id())
             .filter(notSelf)
             .findAny().orElseThrow();
-
-        var client = Client.basic();
 
         int totalGames = client.users().byId(userId).get().count().all();
 
@@ -94,4 +138,8 @@ class opponents {
         return map;
     }
 
+    public static void main(String[] args) throws Exception {
+        int exitCode = new picocli.CommandLine(new opponents()).execute(args);
+        System.exit(exitCode);
+    }
 }

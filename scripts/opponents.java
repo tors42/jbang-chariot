@@ -62,6 +62,7 @@ class opponents implements Runnable {
                         """.formatted(urlAndToken.url()));
                 try {
                     client = Client.auth(urlAndToken.token().get());
+                    deleteGeneratedToken = () -> auth.account().revokeToken();
                 } catch (Exception e) {
                     System.out.println("OAuth2 failed, continuing with slow download. (%s)".formatted(e.getMessage()));
                 }
@@ -72,7 +73,6 @@ class opponents implements Runnable {
                 } else {
                     System.out.println("Using token for faster download");
                     client = auth;
-                    deleteGeneratedToken = () -> auth.account().revokeToken();
                 }
             }
         }

@@ -1,7 +1,5 @@
-//DEPS io.github.tors42:chariot:0.0.50
-//JAVA 18+
-//JAVAC_OPTIONS --enable-preview --release 18
-//JAVA_OPTIONS  --enable-preview
+//DEPS io.github.tors42:chariot:0.0.58
+//JAVA 17+
 
 import chariot.model.Pgn;
 import chariot.model.Pgn.*;

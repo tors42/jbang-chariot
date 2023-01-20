@@ -1,4 +1,4 @@
-//DEPS io.github.tors42:chariot:0.0.57
+//DEPS io.github.tors42:chariot:0.0.58
 //DEPS info.picocli:picocli:4.7.0
 //JAVA 17+
 import java.util.*;
@@ -8,7 +8,7 @@ import java.util.stream.*;
 
 import chariot.Client;
 import chariot.model.*;
-import chariot.model.GameUser.User;
+import chariot.model.Player.User;
 
 import picocli.CommandLine;
 import picocli.CommandLine.*;
@@ -61,7 +61,8 @@ class opponents implements Runnable {
 
                         """.formatted(urlAndToken.url()));
                 try {
-                    client = Client.auth(urlAndToken.token().get());
+                    var auth = Client.auth(urlAndToken.token().get());
+                    client = auth;
                     deleteGeneratedToken = () -> auth.account().revokeToken();
                 } catch (Exception e) {
                     System.out.println("OAuth2 failed, continuing with slow download. (%s)".formatted(e.getMessage()));
@@ -105,7 +106,7 @@ class opponents implements Runnable {
                 game.players().white(),
                 game.players().black())
             .map(User.class::cast)
-            .map(u -> u.user().id())
+            .map(User::id)
             .filter(notSelf)
             .findAny().orElseThrow();
 

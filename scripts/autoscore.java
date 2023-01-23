@@ -1,6 +1,6 @@
-//DEPS io.github.tors42:chariot:0.0.50
-//JAVA 18+
-//JAVAC_OPTIONS --enable-preview --release 18
+//DEPS io.github.tors42:chariot:0.0.58
+//JAVA 19+
+//JAVAC_OPTIONS --enable-preview --release 19
 //JAVA_OPTIONS  --enable-preview
 
 import java.time.*;
@@ -108,19 +108,19 @@ class autoscore {
         System.out.println("%s".formatted(subEvent.name()));
         subEvent.rounds().stream().forEach(round -> {
             String icon = switch(round) {
-                case Round r && r.finished() -> "\uD83D\uDD35";
-                case Round r && r.ongoing()  -> "\uD83D\uDD34";
+                case Round r when r.finished() -> "\uD83D\uDD35";
+                case Round r when r.ongoing()  -> "\uD83D\uDD34";
                 default                      -> "\u2B55";
             };
             var duration = Duration.between(ZonedDateTime.now(), round.startsAt());
 
             String time = switch(duration) {
-                case Duration d && d.isPositive() && d.toMinutes() <= 60 -> "in %d minutes".formatted(d.toMinutes());
-                case Duration d && d.isPositive() && d.toHours() <= 24 -> "in %d hours".formatted(d.toHours());
-                case Duration d && d.isPositive() && d.toDays() <= 7 -> "in %d days".formatted(d.toDays());
-                case Duration d && d.isNegative() && Math.abs(d.toMinutes()) <= 60 -> "%d minutes ago".formatted(Math.abs(d.toMinutes()));
-                case Duration d && d.isNegative() && Math.abs(d.toHours()) <= 24 -> "%d hours ago".formatted(Math.abs(d.toHours()));
-                case Duration d && d.isNegative() && Math.abs(d.toDays()) <= 7 -> "%d days ago".formatted(Math.abs(d.toDays()));
+                case Duration d when d.isPositive() && d.toMinutes() <= 60 -> "in %d minutes".formatted(d.toMinutes());
+                case Duration d when d.isPositive() && d.toHours() <= 24 -> "in %d hours".formatted(d.toHours());
+                case Duration d when d.isPositive() && d.toDays() <= 7 -> "in %d days".formatted(d.toDays());
+                case Duration d when d.isNegative() && Math.abs(d.toMinutes()) <= 60 -> "%d minutes ago".formatted(Math.abs(d.toMinutes()));
+                case Duration d when d.isNegative() && Math.abs(d.toHours()) <= 24 -> "%d hours ago".formatted(Math.abs(d.toHours()));
+                case Duration d when d.isNegative() && Math.abs(d.toDays()) <= 7 -> "%d days ago".formatted(Math.abs(d.toDays()));
 
                 default -> "at %s".formatted(round.startsAt().toLocalDate());
             };
@@ -219,17 +219,17 @@ class autoscore {
 
     static BiFunction<String, Result, Double> pointsForPlayer(String event) {
         return switch(event) {
-            case String s && s.toLowerCase().contains("champions chess tour") ->
+            case String s when s.toLowerCase().contains("champions chess tour") ->
                 (player, result) -> Double.valueOf(switch(result) {
-                case Result.Win w  && w.player().equals(player) -> 3;
-                case Result.Loss l && l.player().equals(player) -> 0;
+                case Result.Win w  when w.player().equals(player) -> 3;
+                case Result.Loss l when l.player().equals(player) -> 0;
                 case Result.Draw d -> 1;
                 default -> 0;
             });
             default ->
                 (player, result) -> Double.valueOf(switch(result) {
-                case Result.Win w  && w.player().equals(player) -> 1;
-                case Result.Loss l && l.player().equals(player) -> 0;
+                case Result.Win w  when w.player().equals(player) -> 1;
+                case Result.Loss l when l.player().equals(player) -> 0;
                 case Result.Draw d -> 0.5;
                 default -> 0;
             });

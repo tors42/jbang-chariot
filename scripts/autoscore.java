@@ -108,9 +108,9 @@ class autoscore {
         System.out.println("%s".formatted(subEvent.name()));
         subEvent.rounds().stream().forEach(round -> {
             String icon = switch(round) {
-                case Round r when r.finished() -> "\uD83D\uDD35";
-                case Round r when r.ongoing()  -> "\uD83D\uDD34";
-                default                      -> "\u2B55";
+                case Round r when r.finished() -> "🔵"; // uD83D uDD35
+                case Round r when r.ongoing()  -> "🔴"; // uD83D uDD34
+                default                        -> "⭕"; // u2B55
             };
             var duration = Duration.between(ZonedDateTime.now(), round.startsAt());
 

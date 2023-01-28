@@ -1,4 +1,4 @@
-//DEPS io.github.tors42:chariot:0.0.58
+//DEPS io.github.tors42:chariot:0.0.59
 //DEPS info.picocli:picocli:4.7.0
 //JAVA 17+
 import java.util.*;

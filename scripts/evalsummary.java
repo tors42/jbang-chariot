@@ -1,4 +1,4 @@
-//DEPS io.github.tors42:chariot:0.0.58
+//DEPS io.github.tors42:chariot:0.0.59
 //JAVA 17+
 
 import chariot.Client;
@@ -11,7 +11,7 @@ class evalsummary {
 
         var client = Client.basic();
 
-        client.games().byGameId(gameId).ifPresent(game -> {
+        client.games().byGameId(gameId, p -> p.accuracy()).ifPresent(game -> {
 
             if (game.analysis().isEmpty()) {
                 System.out.println("""
@@ -55,9 +55,9 @@ class evalsummary {
                      Accuracy(%%):  %3d
                     """.formatted(
                         game.players().white().name(),
-                        wa.inaccuracy(), wa.mistake(), wa.blunder(), wa.acpl(), wa.accuracy(),
+                        wa.inaccuracy(), wa.mistake(), wa.blunder(), wa.acpl(), game.players().white().accuracy().orElse(-1),
                         game.players().black().name(),
-                        ba.inaccuracy(), ba.mistake(), ba.blunder(), ba.acpl(), ba.accuracy()
+                        ba.inaccuracy(), ba.mistake(), ba.blunder(), ba.acpl(), game.players().black().accuracy().orElse(-1)
                         ));
             });
     }

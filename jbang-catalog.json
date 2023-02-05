@@ -22,6 +22,9 @@
         "autoscore": {
             "script-ref": "scripts/autoscore.java"
         },
+        "uci2san": {
+            "script-ref": "scripts/uci2san.jsh"
+        },
         "oauth2pkce": {
             "script-ref": "scripts/oauth2pkce.java"
         }

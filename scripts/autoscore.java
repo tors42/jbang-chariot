@@ -1,7 +1,7 @@
-//DEPS io.github.tors42:chariot:0.0.59
-//JAVA 19+
-//JAVAC_OPTIONS --enable-preview --release 19
-//JAVA_OPTIONS  --enable-preview
+//DEPS io.github.tors42:chariot:0.0.67
+//JAVA 20+
+//COMPILE_OPTIONS --enable-preview --release 20
+//RUNTIME_OPTIONS --enable-preview
 
 import java.time.*;
 import java.util.*;
@@ -72,7 +72,10 @@ class autoscore {
     record SubEvent(String name, List<Round> rounds, BiFunction<String, Result, Double> pointsForPlayer) {}
 
     static List<SubEvent> parseSubEvents(Broadcast broadcast) {
-        var allRounds = broadcast.rounds().stream().filter(r -> r.startsTime() != null).sorted(Comparator.comparingLong(Round::startsTime)).toList();
+        var allRounds = broadcast.rounds().stream()
+            .filter(r -> r.startsAt() != null)
+            .sorted(Comparator.comparing(Round::startsAt))
+            .toList();
 
         if (allRounds.isEmpty()) return List.of();
 

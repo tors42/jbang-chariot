@@ -27,6 +27,9 @@
         },
         "oauth2pkce": {
             "script-ref": "scripts/oauth2pkce.java"
+        },
+        "updateArena": {
+            "script-ref": "scripts/updateArena.java"
         }
       },
     "templates": {}

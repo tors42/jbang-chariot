@@ -3,6 +3,7 @@
 import chariot.*;
 import chariot.Client.*;
 import chariot.model.*;
+import chariot.model.Enums.TournamentState;
 
 import java.util.prefs.Preferences;
 import java.time.Duration;
@@ -21,11 +22,24 @@ class updateArena {
 
         ClientAuth client = initializeClient();
 
-        if (! (client.tournaments().arenaById(arenaId) instanceof Entry<Arena> one)) {
+        if (! (client.tournaments().arenaById(arenaId) instanceof Entry<Arena> arenaResult)) {
             System.err.println("Couldn't find arena with id " + arenaId);
             return;
         }
-        Arena arena = one.entry();
+        Arena arena = arenaResult.entry();
+
+        if (! (client.account().profile() instanceof Entry<UserAuth> profileResult)) {
+            System.err.println("Couldn't find arena with id " + arenaId);
+            return;
+        }
+
+        UserAuth user = profileResult.entry();
+
+        var optTournament = client.tournaments().arenasCreatedByUserId(user.id(), TournamentState.finished)
+            .stream()
+            .filter(t -> t.nbPlayers() == 0)
+            .findFirst();
+
 
         var result = client.tournaments().updateArena(arenaId, params -> params
                 .clock(Duration.ofSeconds(arena.clock().limit()).toMinutes(), arena.clock().increment())

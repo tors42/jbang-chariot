@@ -1,4 +1,4 @@
-//DEPS io.github.tors42:chariot:0.0.68
+//DEPS io.github.tors42:chariot:0.0.69
 //JAVA 17+
 import chariot.*;
 import chariot.Client.*;
@@ -11,44 +11,66 @@ import java.time.Duration;
 class updateArena {
 
     public static void main(String[] args) {
-        if (args.length != 2) {
-            System.err.println("Expected <arenaId> and <description>");
-            System.exit(1);
-        }
-        update(args[0], args[1]);
-    }
-
-    static void update(String arenaId, String description) {
 
         ClientAuth client = initializeClient();
 
-        if (! (client.tournaments().arenaById(arenaId) instanceof Entry<Arena> arenaResult)) {
-            System.err.println("Couldn't find arena with id " + arenaId);
-            return;
-        }
-        Arena arena = arenaResult.entry();
+        var res = client.account().profile();
 
-        if (! (client.account().profile() instanceof Entry<UserAuth> profileResult)) {
-            System.err.println("Couldn't find arena with id " + arenaId);
+        if (! (res instanceof Entry<UserAuth> profileResult)) {
+            System.err.println("Couldn't find user " + res);
             return;
         }
 
-        UserAuth user = profileResult.entry();
+        var user = profileResult.entry();
 
-        var optTournament = client.tournaments().arenasCreatedByUserId(user.id(), TournamentState.finished)
+        var nonStartedTournament = client.tournaments()
+            .arenasCreatedByUserId(user.id(), TournamentState.created)
+            .stream().findFirst();
+
+        if (nonStartedTournament.isEmpty()) {
+            System.out.println("Couldn't find an upcoming arena, so nothing to link old tournaments to");
+            return;
+        }
+
+        Tournament toLink = nonStartedTournament.get();
+
+        String link = "Updated Link: https://lichess.org/tournament/" + toLink.id();
+
+        var endedTournamentWithoutGames = client.tournaments()
+            .arenasCreatedByUserId(user.id(), TournamentState.finished)
             .stream()
-            .filter(t -> t.nbPlayers() == 0)
+            .filter(tournament -> client.tournaments().gamesByArenaId(tournament.id())
+                    .stream()
+                    .allMatch(game -> game.moves().isBlank()))
+            .map(tournament -> client.tournaments().arenaById(tournament.id()))
+            .filter(One::isPresent)
+            .map(one -> one.get())
             .findFirst();
 
+        if (endedTournamentWithoutGames.isEmpty()) {
+            System.out.println("Couldn't find finished arena without games");
+            return;
+        }
 
-        var result = client.tournaments().updateArena(arenaId, params -> params
-                .clock(Duration.ofSeconds(arena.clock().limit()).toMinutes(), arena.clock().increment())
-                .description(description));
+        Arena tournament = endedTournamentWithoutGames.get();
+
+        if (tournament.description().contains("Updated Link:")) {
+            System.out.println("Previous finished arena without games was already linked\n" + tournament.description());
+            return;
+        }
+
+        System.out.println("Found non-linked arena with only empty games: " + tournament.id());
+
+        var result = client.tournaments().updateArena(tournament.id(), params -> params
+                .clock(Duration.ofSeconds(tournament.clock().limit()).toMinutes(), tournament.clock().increment())
+                .description(link));
 
         if (result instanceof Fail<?> fail) {
             System.err.println("Couldn't update arena description: " + fail);
             return;
         }
+
+        System.out.println("Updated description:\n" + link);
     }
 
     static ClientAuth initializeClient() {

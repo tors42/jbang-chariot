@@ -1,7 +1,5 @@
-//DEPS io.github.tors42:chariot:0.0.67
-//JAVA 20+
-//COMPILE_OPTIONS --enable-preview --release 20
-//RUNTIME_OPTIONS --enable-preview
+//DEPS io.github.tors42:chariot:0.0.83
+//JAVA 21+
 
 import java.time.*;
 import java.util.*;
@@ -73,8 +71,8 @@ class autoscore {
 
     static List<SubEvent> parseSubEvents(Broadcast broadcast) {
         var allRounds = broadcast.rounds().stream()
-            .filter(r -> r.startsAt() != null)
-            .sorted(Comparator.comparing(Round::startsAt))
+            .filter(r -> r.startsAt().isPresent())
+            .sorted(Comparator.comparing(r -> r.startsAt().get()))
             .toList();
 
         if (allRounds.isEmpty()) return List.of();
@@ -115,7 +113,7 @@ class autoscore {
                 case Round r when r.ongoing()  -> "🔴"; // uD83D uDD34
                 default                        -> "⭕"; // u2B55
             };
-            var duration = Duration.between(ZonedDateTime.now(), round.startsAt());
+            var duration = Duration.between(ZonedDateTime.now(), round.startsAt().get());
 
             String time = switch(duration) {
                 case Duration d when d.isPositive() && d.toMinutes() <= 60 -> "in %d minutes".formatted(d.toMinutes());
@@ -125,7 +123,7 @@ class autoscore {
                 case Duration d when d.isNegative() && Math.abs(d.toHours()) <= 24 -> "%d hours ago".formatted(Math.abs(d.toHours()));
                 case Duration d when d.isNegative() && Math.abs(d.toDays()) <= 7 -> "%d days ago".formatted(Math.abs(d.toDays()));
 
-                default -> "at %s".formatted(round.startsAt().toLocalDate());
+                default -> "at %s".formatted(round.startsAt().get().toLocalDate());
             };
             System.out.println(" %s %s - %s".formatted(icon, round.name(), round.ongoing() ? "ongoing" : time));
         });

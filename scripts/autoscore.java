@@ -1,4 +1,4 @@
-//DEPS io.github.tors42:chariot:0.0.83
+//DEPS io.github.tors42:chariot:0.0.87
 //JAVA 21+
 
 import java.time.*;

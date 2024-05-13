@@ -1,5 +1,5 @@
-//DEPS io.github.tors42:chariot:0.0.46
-//JAVA 17+
+//DEPS io.github.tors42:chariot:0.0.87
+//JAVA 21+
 import java.io.IOException;
 import java.nio.file.*;
 import java.time.ZonedDateTime;

@@ -1,9 +1,8 @@
-//DEPS io.github.tors42:chariot:0.0.69
-//JAVA 17+
+//DEPS io.github.tors42:chariot:0.1.8
+//JAVA 21+
 import chariot.*;
 import chariot.Client.*;
 import chariot.model.*;
-import chariot.model.Enums.TournamentState;
 
 import java.util.prefs.Preferences;
 import java.time.Duration;
@@ -24,7 +23,7 @@ class updateArena {
         var user = profileResult.entry();
 
         var nonStartedTournament = client.tournaments()
-            .arenasCreatedByUserId(user.id(), TournamentState.created)
+            .arenasCreatedByUserId(user.id(), TourInfo.Status.created)
             .stream().findFirst();
 
         if (nonStartedTournament.isEmpty()) {
@@ -32,19 +31,19 @@ class updateArena {
             return;
         }
 
-        Tournament toLink = nonStartedTournament.get();
+        ArenaLight toLink = nonStartedTournament.get();
 
         String link = "Updated Link: https://lichess.org/tournament/" + toLink.id();
 
         var endedTournamentWithoutGames = client.tournaments()
-            .arenasCreatedByUserId(user.id(), TournamentState.finished)
+            .arenasCreatedByUserId(user.id(), TourInfo.Status.finished)
             .stream()
             .filter(tournament -> client.tournaments().gamesByArenaId(tournament.id())
                     .stream()
-                    .allMatch(game -> game.moves().isBlank()))
+                    .allMatch(game -> !game.moves().isPresent()))
             .map(tournament -> client.tournaments().arenaById(tournament.id()))
             .filter(One::isPresent)
-            .map(one -> one.get())
+            .map(One::get)
             .findFirst();
 
         if (endedTournamentWithoutGames.isEmpty()) {
@@ -54,15 +53,15 @@ class updateArena {
 
         Arena tournament = endedTournamentWithoutGames.get();
 
-        if (tournament.description().contains("Updated Link:")) {
-            System.out.println("Previous finished arena without games was already linked\n" + tournament.description());
+        if (tournament.tourInfo().description() instanceof Some<String> d && d.value().contains("Updated Link:")) {
+            System.out.println("Previous finished arena without games was already linked\n" + d.value());
             return;
         }
 
         System.out.println("Found non-linked arena with only empty games: " + tournament.id());
 
         var result = client.tournaments().updateArena(tournament.id(), params -> params
-                .clock(Duration.ofSeconds(tournament.clock().limit()).toMinutes(), tournament.clock().increment())
+                .clock(tournament.tourInfo().clock())
                 .description(link));
 
         if (result instanceof Fail<?> fail) {
@@ -78,7 +77,7 @@ class updateArena {
         var client = Client.load(prefs);
 
         if (client instanceof ClientAuth auth
-            && auth.scopes().contains(Client.Scope.tournament_write)) {
+            && auth.scopes().stream().toList().contains(Client.Scope.tournament_write)) {
             return auth;
         }
 

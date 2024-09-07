@@ -1,4 +1,4 @@
-//DEPS io.github.tors42:chariot:0.0.87
+//DEPS io.github.tors42:chariot:0.1.8
 //JAVA 21+
 import java.io.IOException;
 import java.nio.file.*;
@@ -10,9 +10,7 @@ import java.util.function.*;
 import java.util.stream.Collectors;
 
 import chariot.Client;
-import chariot.model.Enums.TournamentState;
-import chariot.model.Tournament.TeamBattle;
-import chariot.model.Tournament;
+import chariot.model.*;
 
 class liga {
 
@@ -106,8 +104,8 @@ class liga {
         this.outputFile = outputFile;
     }
 
-    Predicate<Tournament> isFinishedTeamBattle =
-        tournament -> tournament instanceof TeamBattle tb && tb.status() == TournamentState.finished;
+    Predicate<ArenaLight> isFinishedTeamBattle =
+        tournament -> tournament.tourInfo().status() == TourInfo.Status.finished && tournament.teamBattle().isPresent();
 
     BiConsumer<Integer, Integer> printProgress =
         (current, total) -> System.out.format("\rProcessing Team Battle %d/%d".formatted(current, total));
@@ -152,9 +150,8 @@ class liga {
                     );
         }
 
-        var battlesByTeam = arenasByTeam.stream()
+        List<ArenaLight> battlesByTeam = arenasByTeam.stream()
             .filter(isFinishedTeamBattle)
-            .map(arena -> (TeamBattle) arena)
             .toList();
 
         int totalBattlesToProcess = Math.min(desiredNumberOfBattles, battlesByTeam.size());
@@ -166,22 +163,22 @@ class liga {
         }
         print.accept(0);
         var processedCounter = new LongAdder();
-        var list = battlesByTeam.stream()
+        List<Summary> summaries = battlesByTeam.stream()
             .limit(totalBattlesToProcess)
             .peek(tb -> { processedCounter.increment(); print.accept(processedCounter.intValue()); })
             .map(tb -> {
                 var results = client.tournaments().resultsByArenaId(tb.id()).stream()
-                    .filter(r -> teamId.equals(r.team()))
+                    .filter(r -> r.team().map(teamId::equals).orElse(false))
                     .toList();
 
                 var leaders = results.stream()
-                    .filter(ar -> ar.performance() != null)
-                    .map(ar -> new Player(ar.username(), ar.rank(), ar.score(), ar.performance()))
+                    .filter(ar -> ar.performance().isPresent())
+                    .map(ar -> new Player(ar.username(), ar.rank(), ar.score(), ar.performance().get()))
                     .sorted(Comparator.comparing(Player::score).reversed().thenComparing(Player::rank))
-                    .limit(tb.teamBattle().nbLeaders())
+                    .limit(tb.teamBattle().get().nbLeaders())
                     .toList();
 
-                var summary = new Summary(tb.fullName(), tb.startsTime(), tb.nbPlayers(), results.size(), leaders);
+                var summary = new Summary(tb.tourInfo().name(), tb.tourInfo().startsAt(), tb.tourInfo().nbPlayers(), results.size(), leaders);
 
                 appendToFile.accept(formatSummary(summary)+"\n", outputFile);
 
@@ -191,7 +188,7 @@ class liga {
         System.out.println();
 
         if (outputFile == null) {
-            String table = list.stream()
+            String table = summaries.stream()
                 .map(this::formatSummary)
                 .collect(Collectors.joining("\n"));
             System.out.println(table);
